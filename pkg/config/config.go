@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/caarlos0/env/v11"
@@ -318,21 +319,56 @@ func LoadConfig(path string) (*Config, error) {
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return cfg, nil
+		if !os.IsNotExist(err) {
+			return nil, err
 		}
-		return nil, err
-	}
-
-	if err := json.Unmarshal(data, cfg); err != nil {
-		return nil, err
+	} else {
+		if err := json.Unmarshal(data, cfg); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := env.Parse(cfg); err != nil {
 		return nil, err
 	}
+	applyProviderEnvOverrides(cfg)
 
 	return cfg, nil
+}
+
+func applyProviderEnvOverrides(cfg *Config) {
+	providers := map[string]*ProviderConfig{
+		"ANTHROPIC":    &cfg.Providers.Anthropic,
+		"OPENAI":       &cfg.Providers.OpenAI,
+		"OPENROUTER":   &cfg.Providers.OpenRouter,
+		"GROQ":         &cfg.Providers.Groq,
+		"ZHIPU":        &cfg.Providers.Zhipu,
+		"VLLM":         &cfg.Providers.VLLM,
+		"GEMINI":       &cfg.Providers.Gemini,
+		"NVIDIA":       &cfg.Providers.Nvidia,
+		"MOONSHOT":     &cfg.Providers.Moonshot,
+		"SHENGSUANYUN": &cfg.Providers.ShengSuanYun,
+		"DEEPSEEK":     &cfg.Providers.DeepSeek,
+	}
+
+	for name, provider := range providers {
+		applyProviderEnv(provider, "PICOCLAW_PROVIDERS_"+name)
+	}
+}
+
+func applyProviderEnv(provider *ProviderConfig, prefix string) {
+	if value, ok := os.LookupEnv(prefix + "_API_KEY"); ok {
+		provider.APIKey = strings.TrimSpace(value)
+	}
+	if value, ok := os.LookupEnv(prefix + "_API_BASE"); ok {
+		provider.APIBase = strings.TrimSpace(value)
+	}
+	if value, ok := os.LookupEnv(prefix + "_PROXY"); ok {
+		provider.Proxy = strings.TrimSpace(value)
+	}
+	if value, ok := os.LookupEnv(prefix + "_AUTH_METHOD"); ok {
+		provider.AuthMethod = strings.TrimSpace(value)
+	}
 }
 
 func SaveConfig(path string, cfg *Config) error {

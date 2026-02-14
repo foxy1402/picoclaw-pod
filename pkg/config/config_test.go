@@ -1,6 +1,7 @@
 package config
 
 import (
+	"path/filepath"
 	"testing"
 )
 
@@ -175,5 +176,57 @@ func TestConfig_Complete(t *testing.T) {
 	}
 	if !cfg.Heartbeat.Enabled {
 		t.Error("Heartbeat should be enabled by default")
+	}
+}
+
+func TestLoadConfig_EnvOnlyWithoutFile(t *testing.T) {
+	t.Setenv("PICOCLAW_AGENTS_DEFAULTS_MODEL", "openai/gpt-4o-mini")
+	t.Setenv("PICOCLAW_AGENTS_DEFAULTS_WORKSPACE", "/data/workspace")
+	t.Setenv("PICOCLAW_GATEWAY_PORT", "19999")
+	t.Setenv("PICOCLAW_HEARTBEAT_ENABLED", "false")
+
+	cfgPath := filepath.Join(t.TempDir(), "does-not-exist.json")
+	cfg, err := LoadConfig(cfgPath)
+	if err != nil {
+		t.Fatalf("LoadConfig returned error: %v", err)
+	}
+
+	if cfg.Agents.Defaults.Model != "openai/gpt-4o-mini" {
+		t.Fatalf("expected model from env, got %q", cfg.Agents.Defaults.Model)
+	}
+	if cfg.Agents.Defaults.Workspace != "/data/workspace" {
+		t.Fatalf("expected workspace from env, got %q", cfg.Agents.Defaults.Workspace)
+	}
+	if cfg.Gateway.Port != 19999 {
+		t.Fatalf("expected gateway port from env, got %d", cfg.Gateway.Port)
+	}
+	if cfg.Heartbeat.Enabled {
+		t.Fatal("expected heartbeat disabled from env")
+	}
+}
+
+func TestLoadConfig_ProviderEnvOverrides(t *testing.T) {
+	t.Setenv("PICOCLAW_PROVIDERS_OPENROUTER_API_KEY", "or-key")
+	t.Setenv("PICOCLAW_PROVIDERS_OPENROUTER_API_BASE", "https://openrouter.example/v1")
+	t.Setenv("PICOCLAW_PROVIDERS_OPENROUTER_PROXY", "http://proxy.internal:8080")
+	t.Setenv("PICOCLAW_PROVIDERS_OPENROUTER_AUTH_METHOD", "token")
+
+	cfgPath := filepath.Join(t.TempDir(), "does-not-exist.json")
+	cfg, err := LoadConfig(cfgPath)
+	if err != nil {
+		t.Fatalf("LoadConfig returned error: %v", err)
+	}
+
+	if cfg.Providers.OpenRouter.APIKey != "or-key" {
+		t.Fatalf("expected provider api key from env, got %q", cfg.Providers.OpenRouter.APIKey)
+	}
+	if cfg.Providers.OpenRouter.APIBase != "https://openrouter.example/v1" {
+		t.Fatalf("expected provider api base from env, got %q", cfg.Providers.OpenRouter.APIBase)
+	}
+	if cfg.Providers.OpenRouter.Proxy != "http://proxy.internal:8080" {
+		t.Fatalf("expected provider proxy from env, got %q", cfg.Providers.OpenRouter.Proxy)
+	}
+	if cfg.Providers.OpenRouter.AuthMethod != "token" {
+		t.Fatalf("expected provider auth method from env, got %q", cfg.Providers.OpenRouter.AuthMethod)
 	}
 }
