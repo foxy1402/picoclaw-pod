@@ -27,7 +27,7 @@ RUN apk add --no-cache \
     git \
     jq \
     python3 \
-    python3-pip \
+    py3-pip \
     tzdata \
     wget && \
     ln -sf /usr/bin/python3 /usr/bin/python
