@@ -19,6 +19,12 @@ This repository is a cloud-focused PicoClaw variant optimized for container plat
 docker build -t picoclaw-pod:latest .
 ```
 
+Prebuilt image:
+
+```bash
+ghcr.io/foxy1402/picoclaw-pod:latest
+```
+
 ### 2. Run Locally (Env-Only)
 
 ```bash
@@ -27,8 +33,9 @@ docker run --rm -it \
   -e PICOCLAW_AGENTS_DEFAULTS_PROVIDER=openrouter \
   -e PICOCLAW_AGENTS_DEFAULTS_MODEL=openai/gpt-4o-mini \
   -e PICOCLAW_PROVIDERS_OPENROUTER_API_KEY=YOUR_KEY \
+  -e TZ=Asia/Bangkok \
   -v picoclaw-workspace:/root/.picoclaw/workspace \
-  picoclaw-pod:latest gateway
+  ghcr.io/foxy1402/picoclaw-pod:latest gateway
 ```
 
 ## Cloud Deployment (Claw Cloud Style)
@@ -163,6 +170,7 @@ PICOCLAW_TOOLS_WEB_DUCKDUCKGO_MAX_RESULTS=5
 # Gateway
 PICOCLAW_GATEWAY_HOST=0.0.0.0
 PICOCLAW_GATEWAY_PORT=18790
+TZ=Asia/Bangkok
 
 # Heartbeat / periodic tasks
 PICOCLAW_HEARTBEAT_ENABLED=true
