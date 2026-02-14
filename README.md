@@ -55,6 +55,28 @@ Mount persistent volume to:
 
 This preserves sessions, memory, cron jobs, and state across restarts.
 
+### Port Exposure (Important)
+
+Default gateway port:
+
+- `PICOCLAW_GATEWAY_PORT=18790`
+
+This is always the container bind port. You only need to expose/open it publicly when a channel needs inbound traffic.
+
+Open/expose port when using:
+
+- `maixcam` channel (direct TCP server on gateway port)
+- Any channel/webhook mode that requires your pod to receive external callbacks on this port
+
+Usually no public port needed when using:
+
+- `telegram`
+- `discord`
+- `slack`
+- `whatsapp` bridge client mode
+
+These channels are outbound-initiated (polling/websocket/API) and can run without opening inbound port `18790`.
+
 ## Channel Enablement Examples
 
 ### Telegram
