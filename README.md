@@ -152,7 +152,7 @@ PICOCLAW_PROVIDERS_OPENAI_API_KEY=YOUR_KEY
 PICOCLAW_PROVIDERS_OPENAI_API_BASE=https://your-openai-compatible-endpoint/v1
 
 # NVIDIA OpenAI-compatible example
-# PICOCLAW_AGENTS_DEFAULTS_MODEL=deepseek-ai/deepseek-v3.1-terminus
+# PICOCLAW_AGENTS_DEFAULTS_MODEL=YOUR_MODEL
 # PICOCLAW_PROVIDERS_OPENAI_API_BASE=https://integrate.api.nvidia.com/v1
 
 # Optional: switch to OpenRouter instead
