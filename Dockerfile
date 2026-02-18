@@ -25,6 +25,7 @@ RUN apk add --no-cache \
     ca-certificates \
     curl \
     git \
+    go \
     jq \
     python3 \
     py3-pip \
@@ -40,7 +41,8 @@ COPY --from=builder /src/skills /opt/picoclaw/skills
 
 # Create picoclaw home directory
 RUN mkdir -p /root/.picoclaw/workspace/skills && \
-    cp -r /opt/picoclaw/skills/* /root/.picoclaw/workspace/skills/ 2>/dev/null || true
+    cp -r /opt/picoclaw/skills/* /root/.picoclaw/workspace/skills/ 2>/dev/null || true && \
+    mkdir -p /root/.picoclaw/workspace/tools
 
 ENTRYPOINT ["picoclaw"]
 CMD ["gateway"]
