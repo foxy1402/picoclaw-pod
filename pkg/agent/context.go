@@ -30,10 +30,7 @@ func getGlobalConfigDir() string {
 }
 
 func NewContextBuilder(workspace string) *ContextBuilder {
-	// builtin skills: skills directory in current project
-	// Use the skills/ directory under the current working directory
-	wd, _ := os.Getwd()
-	builtinSkillsDir := filepath.Join(wd, "skills")
+	builtinSkillsDir := resolveBuiltinSkillsDir()
 	globalSkillsDir := filepath.Join(getGlobalConfigDir(), "skills")
 
 	return &ContextBuilder{
@@ -265,6 +262,35 @@ func detectMediaType(path string) string {
 	default:
 		return "file"
 	}
+}
+
+func resolveBuiltinSkillsDir() string {
+	candidates := []string{}
+
+	if wd, err := os.Getwd(); err == nil && wd != "" {
+		candidates = append(candidates, filepath.Join(wd, "skills"))
+	}
+
+	if exePath, err := os.Executable(); err == nil && exePath != "" {
+		exeDir := filepath.Dir(exePath)
+		candidates = append(candidates, filepath.Join(exeDir, "skills"))
+		candidates = append(candidates, filepath.Join(exeDir, "..", "skills"))
+	}
+
+	// Container image location used by Dockerfile.
+	candidates = append(candidates, "/opt/picoclaw/skills")
+
+	for _, candidate := range candidates {
+		if candidate == "" {
+			continue
+		}
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return candidate
+		}
+	}
+
+	// Fallback preserves previous behavior.
+	return "skills"
 }
 
 func (cb *ContextBuilder) AddToolResult(messages []providers.Message, toolCallID, toolName, result string) []providers.Message {
