@@ -31,6 +31,8 @@ type TelegramChannel struct {
 	stopThinking sync.Map // chatID -> thinkingCancel
 }
 
+const telegramMessageMaxChars = 3800
+
 type thinkingCancel struct {
 	fn context.CancelFunc
 }
@@ -137,30 +139,66 @@ func (c *TelegramChannel) Send(ctx context.Context, msg bus.OutboundMessage) err
 		c.stopThinking.Delete(msg.ChatID)
 	}
 
-	htmlContent := markdownToTelegramHTML(msg.Content)
+	chunks := splitTelegramMessage(msg.Content, telegramMessageMaxChars)
+	if len(chunks) == 0 {
+		chunks = []string{""}
+	}
 
 	// Try to edit placeholder
 	if pID, ok := c.placeholders.Load(msg.ChatID); ok {
 		c.placeholders.Delete(msg.ChatID)
-		editMsg := tu.EditMessageText(tu.ID(chatID), pID.(int), htmlContent)
-		editMsg.ParseMode = telego.ModeHTML
-
-		if _, err = c.bot.EditMessageText(ctx, editMsg); err == nil {
+		if err = c.editChunkWithFallback(ctx, chatID, pID.(int), chunks[0]); err == nil {
+			for _, chunk := range chunks[1:] {
+				if sendErr := c.sendChunkWithFallback(ctx, chatID, chunk); sendErr != nil {
+					return sendErr
+				}
+			}
 			return nil
 		}
 		// Fallback to new message if edit fails
 	}
 
+	for _, chunk := range chunks {
+		if err = c.sendChunkWithFallback(ctx, chatID, chunk); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *TelegramChannel) sendChunkWithFallback(ctx context.Context, chatID int64, chunk string) error {
+	htmlContent := markdownToTelegramHTML(chunk)
 	tgMsg := tu.Message(tu.ID(chatID), htmlContent)
 	tgMsg.ParseMode = telego.ModeHTML
 
-	if _, err = c.bot.SendMessage(ctx, tgMsg); err != nil {
-		logger.ErrorCF("telegram", "HTML parse failed, falling back to plain text", map[string]interface{}{
+	if _, err := c.bot.SendMessage(ctx, tgMsg); err != nil {
+		logger.ErrorCF("telegram", "HTML send failed, falling back to plain text", map[string]interface{}{
 			"error": err.Error(),
 		})
-		tgMsg.ParseMode = ""
-		_, err = c.bot.SendMessage(ctx, tgMsg)
-		return err
+		plain := tu.Message(tu.ID(chatID), chunk)
+		if _, plainErr := c.bot.SendMessage(ctx, plain); plainErr != nil {
+			return plainErr
+		}
+	}
+
+	return nil
+}
+
+func (c *TelegramChannel) editChunkWithFallback(ctx context.Context, chatID int64, messageID int, chunk string) error {
+	htmlContent := markdownToTelegramHTML(chunk)
+	editMsg := tu.EditMessageText(tu.ID(chatID), messageID, htmlContent)
+	editMsg.ParseMode = telego.ModeHTML
+
+	if _, err := c.bot.EditMessageText(ctx, editMsg); err != nil {
+		logger.ErrorCF("telegram", "HTML edit failed, falling back to plain text", map[string]interface{}{
+			"error": err.Error(),
+		})
+		editMsg.ParseMode = ""
+		editMsg.Text = chunk
+		if _, plainErr := c.bot.EditMessageText(ctx, editMsg); plainErr != nil {
+			return plainErr
+		}
 	}
 
 	return nil
@@ -511,4 +549,47 @@ func escapeHTML(text string) string {
 	text = strings.ReplaceAll(text, "<", "&lt;")
 	text = strings.ReplaceAll(text, ">", "&gt;")
 	return text
+}
+
+func splitTelegramMessage(text string, maxLen int) []string {
+	if maxLen <= 0 {
+		maxLen = telegramMessageMaxChars
+	}
+
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return []string{""}
+	}
+
+	runes := []rune(text)
+	if len(runes) <= maxLen {
+		return []string{text}
+	}
+
+	chunks := make([]string, 0, (len(runes)/maxLen)+1)
+	for len(runes) > 0 {
+		if len(runes) <= maxLen {
+			chunks = append(chunks, strings.TrimSpace(string(runes)))
+			break
+		}
+
+		split := maxLen
+		for i := maxLen; i > 0; i-- {
+			if runes[i-1] == '\n' {
+				split = i
+				break
+			}
+		}
+
+		chunk := strings.TrimSpace(string(runes[:split]))
+		if chunk != "" {
+			chunks = append(chunks, chunk)
+		}
+		runes = runes[split:]
+	}
+
+	if len(chunks) == 0 {
+		return []string{""}
+	}
+	return chunks
 }
