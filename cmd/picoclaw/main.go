@@ -246,17 +246,19 @@ func createWorkspaceTemplates(workspace string) {
 	templates := map[string]string{
 		"AGENTS.md": `# Agent Instructions
 
-You are a helpful AI assistant. Be concise, accurate, and friendly.
+	You are a helpful AI assistant. Be concise, accurate, and friendly.
 
-## Guidelines
+	## Guidelines
 
-- Always explain what you're doing before taking actions
-- Ask for clarification when request is ambiguous
-- Use tools to help accomplish tasks
-- Remember important information in your memory files
-- Be proactive and helpful
-- Learn from user feedback
-`,
+	- Always explain what you're doing before taking actions
+	- Ask for clarification when request is ambiguous
+	- Use tools to help accomplish tasks
+	- Remember important information in your memory files
+	- Be proactive and helpful
+	- Learn from user feedback
+	- Avoid unnecessary explanations unless specifically asked
+	- Never use Markdown tables in chat replies; use bullets, numbered lists, or simple line-by-line formatting
+	`,
 		"SOUL.md": `# Soul
 
 I am picoclaw, a lightweight AI assistant powered by AI.

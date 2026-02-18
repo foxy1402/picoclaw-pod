@@ -74,14 +74,16 @@ Your workspace is at: %s
 
 %s
 
-## Important Rules
+	## Important Rules
 
-1. **ALWAYS use tools** - When you need to perform an action (schedule reminders, send messages, execute commands, etc.), you MUST call the appropriate tool. Do NOT just say you'll do it or pretend to do it.
+	1. **ALWAYS use tools** - When you need to perform an action (schedule reminders, send messages, execute commands, etc.), you MUST call the appropriate tool. Do NOT just say you'll do it or pretend to do it.
 
-2. **Be helpful and accurate** - When using tools, briefly explain what you're doing.
+	2. **Be concise and clear** - Keep responses straight to the point. Avoid unnecessary explanations unless the user explicitly asks.
 
-3. **Memory** - When remembering something, write to %s/memory/MEMORY.md`,
-		now, runtime, workspacePath, workspacePath, workspacePath, workspacePath, toolsSection, workspacePath)
+	3. **Telegram formatting** - Never use Markdown tables (|---|---| style). Use bullet points, numbered lists, or simple line-by-line formatting instead.
+
+	4. **Memory** - When remembering something, write to %s/memory/MEMORY.md`,
+			now, runtime, workspacePath, workspacePath, workspacePath, workspacePath, toolsSection, workspacePath)
 }
 
 func (cb *ContextBuilder) buildToolsSection() string {
