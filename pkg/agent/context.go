@@ -207,12 +207,62 @@ func (cb *ContextBuilder) BuildMessages(history []providers.Message, summary str
 
 	messages = append(messages, history...)
 
+	userContent := currentMessage
+	if mediaContext := buildMediaContext(media); mediaContext != "" {
+		if userContent != "" {
+			userContent += "\n\n"
+		}
+		userContent += mediaContext
+	}
+
 	messages = append(messages, providers.Message{
 		Role:    "user",
-		Content: currentMessage,
+		Content: userContent,
 	})
 
 	return messages
+}
+
+func buildMediaContext(media []string) string {
+	if len(media) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("Attached media files:\n")
+
+	added := 0
+	for _, m := range media {
+		path := strings.TrimSpace(m)
+		if path == "" {
+			continue
+		}
+		added++
+		if added > 10 {
+			sb.WriteString("- ... (more files omitted)\n")
+			break
+		}
+		sb.WriteString(fmt.Sprintf("- [%s] %s\n", detectMediaType(path), path))
+	}
+
+	if added == 0 {
+		return ""
+	}
+	return strings.TrimSpace(sb.String())
+}
+
+func detectMediaType(path string) string {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff":
+		return "image"
+	case ".ogg", ".mp3", ".wav", ".m4a", ".flac", ".aac":
+		return "audio"
+	case ".mp4", ".mov", ".avi", ".mkv", ".webm":
+		return "video"
+	default:
+		return "file"
+	}
 }
 
 func (cb *ContextBuilder) AddToolResult(messages []providers.Message, toolCallID, toolName, result string) []providers.Message {

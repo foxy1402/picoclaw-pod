@@ -53,6 +53,29 @@ type DownloadOptions struct {
 	LoggerPrefix string
 }
 
+const mediaCleanupMaxAge = time.Hour
+
+func cleanupOldMediaFiles(mediaDir string, maxAge time.Duration) {
+	entries, err := os.ReadDir(mediaDir)
+	if err != nil {
+		return
+	}
+
+	cutoff := time.Now().Add(-maxAge)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if info.ModTime().Before(cutoff) {
+			_ = os.Remove(filepath.Join(mediaDir, entry.Name()))
+		}
+	}
+}
+
 // DownloadFile downloads a file from URL to a local temp directory.
 // Returns the local file path or empty string on error.
 func DownloadFile(url, filename string, opts DownloadOptions) string {
@@ -71,6 +94,8 @@ func DownloadFile(url, filename string, opts DownloadOptions) string {
 		})
 		return ""
 	}
+	// Keep temp media storage bounded for long-running pods.
+	cleanupOldMediaFiles(mediaDir, mediaCleanupMaxAge)
 
 	// Generate unique filename with UUID prefix to prevent conflicts
 	ext := filepath.Ext(filename)

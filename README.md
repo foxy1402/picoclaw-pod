@@ -113,7 +113,10 @@ PICOCLAW_PROVIDERS_ANTHROPIC_API_KEY=
 PICOCLAW_PROVIDERS_GROQ_API_KEY=
 PICOCLAW_PROVIDERS_ZHIPU_API_KEY=
 PICOCLAW_PROVIDERS_GEMINI_API_KEY=
+PICOCLAW_MULTIMODAL=gemini-2.5-flash-lite-latest
 ```
+
+`PICOCLAW_MULTIMODAL` is used by multimodal helper skills/scripts (for vision/audio tasks) and does not override the main loop model (`PICOCLAW_AGENTS_DEFAULTS_MODEL`).
 
 `PICOCLAW_PROVIDERS_OPENAI_API_KEY` is not only for OpenAI official endpoint.
 You can use it for any OpenAI-compatible provider by setting a custom base URL:
