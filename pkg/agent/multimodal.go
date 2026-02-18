@@ -43,6 +43,10 @@ func (al *AgentLoop) enrichMessageWithMultimodal(ctx context.Context, userMessag
 	for _, model := range models {
 		result, err = callGeminiMultimodal(ctx, apiKey, model, prompt, media)
 		if err == nil {
+			logger.InfoCF("agent", "Auto multimodal routing succeeded", map[string]interface{}{
+				"model":       model,
+				"media_count": len(media),
+			})
 			break
 		}
 		// Retry with fallback models only when model/endpoint is not found.
