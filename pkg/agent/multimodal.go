@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -49,8 +50,8 @@ func (al *AgentLoop) enrichMessageWithMultimodal(ctx context.Context, userMessag
 			})
 			break
 		}
-		// Retry with fallback models only when model/endpoint is not found.
-		if !strings.Contains(err.Error(), "status 404") {
+		// Retry with fallback models for model/quota/transient API errors.
+		if !shouldRetryNextModel(err) {
 			break
 		}
 	}
@@ -159,6 +160,20 @@ type geminiResponse struct {
 	} `json:"candidates"`
 }
 
+type geminiAPIError struct {
+	status int
+	model  string
+	body   string
+}
+
+func (e *geminiAPIError) Error() string {
+	return fmt.Sprintf("gemini API returned status %d for model %s: %s", e.status, e.model, strings.TrimSpace(e.body))
+}
+
+func (e *geminiAPIError) StatusCode() int {
+	return e.status
+}
+
 func callGeminiMultimodal(ctx context.Context, apiKey, model, prompt string, media []string) (string, error) {
 	parts := []geminiPart{{Text: prompt}}
 	addedMedia := 0
@@ -221,7 +236,11 @@ func callGeminiMultimodal(ctx context.Context, apiKey, model, prompt string, med
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("gemini API returned status %d for model %s: %s", resp.StatusCode, model, strings.TrimSpace(string(respBody)))
+		return "", &geminiAPIError{
+			status: resp.StatusCode,
+			model:  model,
+			body:   string(respBody),
+		}
 	}
 
 	var parsed geminiResponse
@@ -239,6 +258,32 @@ func callGeminiMultimodal(ctx context.Context, apiKey, model, prompt string, med
 		}
 	}
 	return strings.TrimSpace(strings.Join(out, "\n\n")), nil
+}
+
+func shouldRetryNextModel(err error) bool {
+	apiErr := &geminiAPIError{}
+	if !errors.As(err, &apiErr) {
+		return false
+	}
+
+	switch apiErr.StatusCode() {
+	case 404, 408, 409, 429:
+		return true
+	}
+
+	// 5xx can be transient; try next model.
+	if apiErr.StatusCode() >= 500 {
+		return true
+	}
+
+	// For 400, retry if body suggests model mismatch/not found.
+	if apiErr.StatusCode() == 400 {
+		body := strings.ToLower(apiErr.body)
+		return strings.Contains(body, "model") || strings.Contains(body, "not found")
+	}
+
+	// 401/403 and other 4xx are typically hard failures for this key/project.
+	return false
 }
 
 func detectMediaMIME(path string) string {
