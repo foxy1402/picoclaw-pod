@@ -1,10 +1,12 @@
 package agent
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"net/url"
@@ -33,12 +35,21 @@ func (al *AgentLoop) enrichMessageWithMultimodal(ctx context.Context, userMessag
 	}
 
 	prompt := buildMultimodalPrompt(userMessage)
-	model := strings.TrimSpace(os.Getenv("PICOCLAW_MULTIMODAL"))
-	if model == "" {
-		model = defaultMultimodalModel
+	models := buildMultimodalModelCandidates(strings.TrimSpace(os.Getenv("PICOCLAW_MULTIMODAL")))
+	var (
+		result string
+		err    error
+	)
+	for _, model := range models {
+		result, err = callGeminiMultimodal(ctx, apiKey, model, prompt, media)
+		if err == nil {
+			break
+		}
+		// Retry with fallback models only when model/endpoint is not found.
+		if !strings.Contains(err.Error(), "status 404") {
+			break
+		}
 	}
-
-	result, err := callGeminiMultimodal(ctx, apiKey, model, prompt, media)
 	if err != nil {
 		logger.WarnCF("agent", "Auto multimodal routing failed", map[string]interface{}{
 			"error": err.Error(),
@@ -54,6 +65,31 @@ func (al *AgentLoop) enrichMessageWithMultimodal(ctx context.Context, userMessag
 		base = "[media message]"
 	}
 	return fmt.Sprintf("%s\n\n%s\n%s", base, autoMultimodalHeader, strings.TrimSpace(result))
+}
+
+func buildMultimodalModelCandidates(primary string) []string {
+	candidates := []string{}
+	seen := map[string]bool{}
+	add := func(v string) {
+		v = strings.TrimSpace(v)
+		if v == "" || seen[v] {
+			return
+		}
+		seen[v] = true
+		candidates = append(candidates, v)
+	}
+
+	add(primary)
+	add("gemini-3-pro-preview")
+	add("gemini-3-flash-preview")
+	add("gemini-2.5-flash")
+	add("gemini-2.5-flash-preview-09-2025")
+	add("gemini-2.5-flash-lite")
+	add("gemini-2.5-flash-lite-preview-09-2025")
+	add("gemini-2.5-pro")
+	add(defaultMultimodalModel)
+
+	return candidates
 }
 
 func buildMultimodalPrompt(userMessage string) string {
@@ -175,12 +211,18 @@ func callGeminiMultimodal(ctx context.Context, apiKey, model, prompt string, med
 	}
 	defer resp.Body.Close()
 
-	var parsed geminiResponse
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
-		return "", fmt.Errorf("decode multimodal response: %w", err)
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read multimodal response: %w", err)
 	}
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("gemini API returned status %d", resp.StatusCode)
+		return "", fmt.Errorf("gemini API returned status %d for model %s: %s", resp.StatusCode, model, strings.TrimSpace(string(respBody)))
+	}
+
+	var parsed geminiResponse
+	if err := json.NewDecoder(bytes.NewReader(respBody)).Decode(&parsed); err != nil {
+		return "", fmt.Errorf("decode multimodal response: %w", err)
 	}
 
 	var out []string
