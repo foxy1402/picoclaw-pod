@@ -291,6 +291,39 @@ func detectMediaMIME(path string) string {
 	if ext == "" {
 		return "application/octet-stream"
 	}
+	// Prefer explicit mappings for common Telegram media types.
+	switch ext {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".gif":
+		return "image/gif"
+	case ".webp":
+		return "image/webp"
+	case ".bmp":
+		return "image/bmp"
+	case ".tif", ".tiff":
+		return "image/tiff"
+	case ".mp3":
+		return "audio/mpeg"
+	case ".ogg", ".oga":
+		return "audio/ogg"
+	case ".wav":
+		return "audio/wav"
+	case ".m4a":
+		return "audio/mp4"
+	case ".flac":
+		return "audio/flac"
+	case ".aac":
+		return "audio/aac"
+	case ".mp4":
+		return "video/mp4"
+	case ".mov":
+		return "video/quicktime"
+	case ".webm":
+		return "video/webm"
+	}
 	if t := mime.TypeByExtension(ext); t != "" {
 		return t
 	}
