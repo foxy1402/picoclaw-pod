@@ -105,7 +105,7 @@ TZ=Asia/Bangkok
 ```
 
 6. In `Volumes`, mount a persistent volume to `/root/.picoclaw/workspace` (for example named volume `picoclaw-workspace`).
-7. In `Restart policy`, choose `Unless stopped`.
+7. In `Restart policy`, choose `Always`.
 8. Publish port `18790` only if your channel requires inbound traffic (for example `maixcam`/webhooks).
 9. Click `Deploy the container`.
 
@@ -120,7 +120,7 @@ services:
   picoclaw-gateway:
     image: ghcr.io/foxy1402/picoclaw-pod:latest
     container_name: picoclaw-gateway
-    restart: unless-stopped
+    restart: always
     command: ["gateway"]
     environment:
       PICOCLAW_AGENTS_DEFAULTS_WORKSPACE: /root/.picoclaw/workspace
