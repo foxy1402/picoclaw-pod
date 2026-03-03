@@ -84,6 +84,63 @@ Usually no public port needed when using:
 
 These channels are outbound-initiated (polling/websocket/API) and can run without opening inbound port `18790`.
 
+## Deployment On Portainer (Docker)
+
+You can deploy this image from Portainer either with the **Containers** UI (single container) or **Stacks** (compose).
+
+### Option A: Portainer Containers UI
+
+1. Go to `Containers` -> `Add container`.
+2. Set `Name`: `picoclaw-gateway`.
+3. Set `Image`: `ghcr.io/foxy1402/picoclaw-pod:latest`.
+4. Set `Command`: `gateway`.
+5. In `Advanced container settings` -> `Env`, add at minimum:
+
+```env
+PICOCLAW_AGENTS_DEFAULTS_WORKSPACE=/root/.picoclaw/workspace
+PICOCLAW_AGENTS_DEFAULTS_PROVIDER=openrouter
+PICOCLAW_AGENTS_DEFAULTS_MODEL=openai/gpt-4o-mini
+PICOCLAW_PROVIDERS_OPENROUTER_API_KEY=YOUR_KEY
+TZ=Asia/Bangkok
+```
+
+6. In `Volumes`, mount a persistent volume to `/root/.picoclaw/workspace` (for example named volume `picoclaw-workspace`).
+7. In `Restart policy`, choose `Unless stopped`.
+8. Publish port `18790` only if your channel requires inbound traffic (for example `maixcam`/webhooks).
+9. Click `Deploy the container`.
+
+### Option B: Portainer Stacks (docker-compose)
+
+1. Go to `Stacks` -> `Add stack`.
+2. Name it `picoclaw-pod`.
+3. Paste this stack file:
+
+```yaml
+services:
+  picoclaw-gateway:
+    image: ghcr.io/foxy1402/picoclaw-pod:latest
+    container_name: picoclaw-gateway
+    restart: unless-stopped
+    command: ["gateway"]
+    environment:
+      PICOCLAW_AGENTS_DEFAULTS_WORKSPACE: /root/.picoclaw/workspace
+      PICOCLAW_AGENTS_DEFAULTS_PROVIDER: openrouter
+      PICOCLAW_AGENTS_DEFAULTS_MODEL: openai/gpt-4o-mini
+      PICOCLAW_PROVIDERS_OPENROUTER_API_KEY: YOUR_KEY
+      TZ: Asia/Bangkok
+    volumes:
+      - picoclaw-workspace:/root/.picoclaw/workspace
+    # Optional: only publish when you need inbound traffic
+    # ports:
+    #   - "18790:18790"
+
+volumes:
+  picoclaw-workspace:
+```
+
+4. Add secrets/real API keys using Portainer environment variables or secrets integration.
+5. Click `Deploy the stack`.
+
 ## Channel Enablement Examples
 
 ### Telegram
